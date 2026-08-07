@@ -1,41 +1,46 @@
 name: IaC Scanner Benchmark Pipeline
 
 on:
-  workflow_dispatch: # Allows you to manually trigger the benchmark in GitHub UI
+  workflow_dispatch:
 
 jobs:
   benchmark-scanners:
-    runs-on: ubuntu-22.04
-    
-    # SECURITY CONTROL 1: Principle of Least Privilege
-    # Strips all default write permissions from the GitHub Actions token
-    permissions:
-      contents: read
-    
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
-        # SECURITY CONTROL 2: Action Pinning
-        # Using a specific, safe version of checkout to prevent action hijacking
-        uses: actions/checkout@v4.1.1 
-        
-      - name: Setup Benchmark Output Directory
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # Pinned to v4
+
+      - name: Create Results Directory
         run: mkdir -p benchmark_results
+
+      # --- BASELINE METRICS ---
+      - name: Calculate Total Terraform Entities
+        run: |
+          echo "Calculating absolute entity count in repository..."
+          TOTAL_ENTITIES=$(grep -rE "^resource |^data |^module " . --include="*.tf" | wc -l)
+          echo "TOTAL_BASELINE_ENTITIES=$TOTAL_ENTITIES" >> $GITHUB_ENV
+          echo "Found $TOTAL_ENTITIES baseline entities in the codebase."
 
       # --- SCANNER 1: CHECKOV ---
       - name: Run Checkov Scanner
         run: |
+          echo "Fetching Checkov version..."
+          CHECKOV_VER=$(docker run --rm bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144 --version | head -n 1 | tr -d '\r\n')
+          echo "CHECKOV_VERSION=$CHECKOV_VER" >> $GITHUB_ENV
+          
           echo "Starting Checkov..."
           start_time=$(date +%s%N)
           
-          # SECURITY CONTROL 3: Immutable Trust (Docker Digest Pinning)
-          docker run --rm --tty --volume $(pwd):/src \
-            bridgecrew/checkov@sha256:49c11818274719277026742517865913e2d59663d91782247fb4234546522c00 \
+          # Checkov exports via stdout redirection, so a separate results mount is unnecessary
+          docker run --rm \
+            --volume $(pwd):/src:ro \
+            bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144 \
             -d /src \
             -o json \
             > benchmark_results/checkov-results.json || true
             
           end_time=$(date +%s%N)
-          # METHODOLOGY: Pipeline Execution Time Defense (includes container overhead)
           CHECKOV_RUNTIME=$(( ($end_time - $start_time) / 1000000 ))
           echo "CHECKOV_RUNTIME_MS=$CHECKOV_RUNTIME" >> $GITHUB_ENV
           echo "Checkov completed in $CHECKOV_RUNTIME ms"
@@ -43,15 +48,20 @@ jobs:
       # --- SCANNER 2: TRIVY ---
       - name: Run Trivy Scanner
         run: |
+          echo "Fetching Trivy version..."
+          TRIVY_VER=$(docker run --rm aquasec/trivy@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 --version | head -n 1 | awk '{print $2}' | tr -d '\r\n')
+          echo "TRIVY_VERSION=$TRIVY_VER" >> $GITHUB_ENV
+        
           echo "Starting Trivy..."
           start_time=$(date +%s%N)
           
-          # SECURITY CONTROL 3: Immutable Trust (Pinned to safe v0.69.3 linux/amd64)
-          docker run --rm --volume $(pwd):/src \
-            aquasec/trivy@sha256:7228e304ae0f610a1fad937baa463598cadac0c2ac4027cc68f3a8b997115689 \
+          docker run --rm \
+            --volume $(pwd):/src:ro \
+            --volume $(pwd)/benchmark_results:/results \
+            aquasec/trivy@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 \
             config /src \
             --format json \
-            --output /src/benchmark_results/trivy-results.json || true
+            --output /results/trivy-results.json || true
             
           end_time=$(date +%s%N)
           TRIVY_RUNTIME=$(( ($end_time - $start_time) / 1000000 ))
@@ -61,17 +71,21 @@ jobs:
       # --- SCANNER 3: KICS ---
       - name: Run KICS Scanner
         run: |
+          echo "Fetching KICS version..."
+          KICS_VER=$(docker run --rm --entrypoint kics checkmarx/kics@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d '\r\n')
+          echo "KICS_VERSION=$KICS_VER" >> $GITHUB_ENV
+        
           echo "Starting KICS..."
           start_time=$(date +%s%N)
           
-          # SECURITY CONTROL 3: Immutable Trust 
-          # Note: Replace this placeholder SHA with your vetted, safe v2.1.20 KICS digest
-          docker run --rm --volume $(pwd):/src \
-            checkmarx/kics@sha256:a1b2c3d4e5f6071234567890abcdef1234567890abcdef1234567890abcdef12 \
+          docker run --rm \
+            --volume $(pwd):/src:ro \
+            --volume $(pwd)/benchmark_results:/results \
+            checkmarx/kics@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
             scan -p /src \
             --type Terraform \
             --report-formats json \
-            -o /src/benchmark_results/ \
+            -o /results/ \
             --output-name kics-results || true
             
           end_time=$(date +%s%N)
@@ -79,18 +93,21 @@ jobs:
           echo "KICS_RUNTIME_MS=$KICS_RUNTIME" >> $GITHUB_ENV
           echo "KICS completed in $KICS_RUNTIME ms"
 
-      # --- EXPORT DATA FOR THESIS ANALYSIS ---
-      - name: Record and Output Runtimes to GitHub Summary
-        run: |
-          echo "### Pipeline Execution Time Results (in milliseconds)" >> $GITHUB_STEP_SUMMARY
-          echo "| Scanner | Total Pipeline Impact (ms) |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Checkov | ${{ env.CHECKOV_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Trivy   | ${{ env.TRIVY_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| KICS    | ${{ env.KICS_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
-          
+      # --- ARTIFACT EXPORT ---
       - name: Upload JSON Benchmark Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # Pinned to v4
         with:
           name: iac-scanner-results
           path: benchmark_results/
+
+      # --- GENERATE SUMMARY ---
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          echo "### Pipeline Execution Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Scanner | Version | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Baseline Entities** | - | $TOTAL_BASELINE_ENTITIES (count) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Checkov** | ${{ env.CHECKOV_VERSION }} | ${{ env.CHECKOV_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trivy** | ${{ env.TRIVY_VERSION }} | ${{ env.TRIVY_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| **KICS** | ${{ env.KICS_VERSION }} | ${{ env.KICS_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
