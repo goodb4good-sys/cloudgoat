@@ -1,0 +1,96 @@
+name: IaC Scanner Benchmark Pipeline
+
+on:
+  workflow_dispatch: # Allows you to manually trigger the benchmark in GitHub UI
+
+jobs:
+  benchmark-scanners:
+    runs-on: ubuntu-22.04
+    
+    # SECURITY CONTROL 1: Principle of Least Privilege
+    # Strips all default write permissions from the GitHub Actions token
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout Repository
+        # SECURITY CONTROL 2: Action Pinning
+        # Using a specific, safe version of checkout to prevent action hijacking
+        uses: actions/checkout@v4.1.1 
+        
+      - name: Setup Benchmark Output Directory
+        run: mkdir -p benchmark_results
+
+      # --- SCANNER 1: CHECKOV ---
+      - name: Run Checkov Scanner
+        run: |
+          echo "Starting Checkov..."
+          start_time=$(date +%s%N)
+          
+          # SECURITY CONTROL 3: Immutable Trust (Docker Digest Pinning)
+          docker run --rm --tty --volume $(pwd):/src \
+            bridgecrew/checkov@sha256:49c11818274719277026742517865913e2d59663d91782247fb4234546522c00 \
+            -d /src \
+            -o json \
+            > benchmark_results/checkov-results.json || true
+            
+          end_time=$(date +%s%N)
+          # METHODOLOGY: Pipeline Execution Time Defense (includes container overhead)
+          CHECKOV_RUNTIME=$(( ($end_time - $start_time) / 1000000 ))
+          echo "CHECKOV_RUNTIME_MS=$CHECKOV_RUNTIME" >> $GITHUB_ENV
+          echo "Checkov completed in $CHECKOV_RUNTIME ms"
+
+      # --- SCANNER 2: TRIVY ---
+      - name: Run Trivy Scanner
+        run: |
+          echo "Starting Trivy..."
+          start_time=$(date +%s%N)
+          
+          # SECURITY CONTROL 3: Immutable Trust (Pinned to safe v0.69.3 linux/amd64)
+          docker run --rm --volume $(pwd):/src \
+            aquasec/trivy@sha256:7228e304ae0f610a1fad937baa463598cadac0c2ac4027cc68f3a8b997115689 \
+            config /src \
+            --format json \
+            --output /src/benchmark_results/trivy-results.json || true
+            
+          end_time=$(date +%s%N)
+          TRIVY_RUNTIME=$(( ($end_time - $start_time) / 1000000 ))
+          echo "TRIVY_RUNTIME_MS=$TRIVY_RUNTIME" >> $GITHUB_ENV
+          echo "Trivy completed in $TRIVY_RUNTIME ms"
+
+      # --- SCANNER 3: KICS ---
+      - name: Run KICS Scanner
+        run: |
+          echo "Starting KICS..."
+          start_time=$(date +%s%N)
+          
+          # SECURITY CONTROL 3: Immutable Trust 
+          # Note: Replace this placeholder SHA with your vetted, safe v2.1.20 KICS digest
+          docker run --rm --volume $(pwd):/src \
+            checkmarx/kics@sha256:a1b2c3d4e5f6071234567890abcdef1234567890abcdef1234567890abcdef12 \
+            scan -p /src \
+            --type Terraform \
+            --report-formats json \
+            -o /src/benchmark_results/ \
+            --output-name kics-results || true
+            
+          end_time=$(date +%s%N)
+          KICS_RUNTIME=$(( ($end_time - $start_time) / 1000000 ))
+          echo "KICS_RUNTIME_MS=$KICS_RUNTIME" >> $GITHUB_ENV
+          echo "KICS completed in $KICS_RUNTIME ms"
+
+      # --- EXPORT DATA FOR THESIS ANALYSIS ---
+      - name: Record and Output Runtimes to GitHub Summary
+        run: |
+          echo "### Pipeline Execution Time Results (in milliseconds)" >> $GITHUB_STEP_SUMMARY
+          echo "| Scanner | Total Pipeline Impact (ms) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Checkov | ${{ env.CHECKOV_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trivy   | ${{ env.TRIVY_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| KICS    | ${{ env.KICS_RUNTIME_MS }} |" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Upload JSON Benchmark Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iac-scanner-results
+          path: benchmark_results/
