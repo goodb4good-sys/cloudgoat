@@ -35,7 +35,8 @@ jobs:
           docker run --rm \
             --volume $(pwd):/src:ro \
             bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144 \
-            -d /src \
+            #config /src \
+            -d /src/cloudgoat/scenarios/aws/agentcore_identity_confusion \
             -o json \
             > benchmark_results/checkov-results.json || true
             
@@ -58,7 +59,8 @@ jobs:
             --volume $(pwd):/src:ro \
             --volume $(pwd)/benchmark_results:/results \
             aquasec/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
-            config /src \
+            #config /src \
+            config /src/cloudgoat/scenarios/aws/agentcore_identity_confusion \
             --format json \
             --output /results/trivy-results.json || true
             
@@ -81,7 +83,8 @@ jobs:
             --volume $(pwd):/src:ro \
             --volume $(pwd)/benchmark_results:/results \
             checkmarx/kics@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 \
-            scan -p /src \
+            #scan -p /src \
+            scan -p /src/cloudgoat/scenarios/aws/agentcore_identity_confusion \
             --type Terraform \
             --report-formats json \
             -o /results/ \
