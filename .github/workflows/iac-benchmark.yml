@@ -96,7 +96,7 @@ jobs:
       - name: Upload JSON Benchmark Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # Pinned to v4
         with:
-          name: iac-scanner-results
+          name: Cloudgoat-results
           path: benchmark_results/
 
       # --- GENERATE SUMMARY ---
