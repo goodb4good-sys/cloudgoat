@@ -121,6 +121,7 @@ jobs:
           echo "### Pipeline Execution Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Scanner | Version | Result |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Baseline Files** | - | $TOTAL_BASELINE_FILES (count) |" >> $GITHUB_STEP_SUMMARY          echo "| **Checkov** | ${{ env.CHECKOV_VERSION }} | ${{ env.CHECKOV_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Baseline Files** | - | $TOTAL_BASELINE_FILES (count) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Checkov** | ${{ env.CHECKOV_VERSION }} | ${{ env.CHECKOV_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
           echo "| **Trivy** | ${{ env.TRIVY_VERSION }} | ${{ env.TRIVY_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
           echo "| **KICS** | ${{ env.KICS_VERSION }} | ${{ env.KICS_RUNTIME_MS }} ms |" >> $GITHUB_STEP_SUMMARY
