@@ -35,11 +35,7 @@ jobs:
             --volume $(pwd):/src:ro \
             bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144 \
             -d /src/cloudgoat/scenarios/aws \
-            --skip-path ".*lambda_source_code.*" \
-            --skip-path ".*assets.*" \
-            --skip-path ".*website.*" \
-            --skip-path ".*source.*" \
-            --skip-path ".*app.*" \
+            --skip-path ".*vulnerable_lambda/terraform/lambda_source_code.*" \
             --framework terraform \
             -o json \
             > benchmark_results/checkov-results.json || true
@@ -64,15 +60,7 @@ jobs:
             --volume $(pwd)/benchmark_results:/results \
             aquasec/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c \
             config /src/cloudgoat/scenarios/aws \
-            --skip-dirs "**/lambda_source_code" \
-            --skip-dirs "**/assets" \
-            --skip-dirs "**/website" \
-            --skip-dirs "**/source" \
-            --skip-dirs "**/app" \
-            --skip-dirs "**/target_lambda_src" \
-            --skip-files "**/Dockerfile*" \
-            --skip-files "**/*.yml" \
-            --skip-files "**/*.yaml" \
+            --skip-dirs "/src/cloudgoat/scenarios/aws/vulnerable_lambda/terraform/lambda_source_code" \
             --format json \
             --output /results/trivy-results.json || true
             
@@ -96,7 +84,7 @@ jobs:
             --volume $(pwd)/benchmark_results:/results \
             checkmarx/kics@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 \
             scan -p /src/cloudgoat/scenarios/aws \
-            --exclude-paths "/src/cloudgoat/scenarios/aws/**/assets,/src/cloudgoat/scenarios/aws/**/lambda_source_code,/src/cloudgoat/scenarios/aws/**/website,/src/cloudgoat/scenarios/aws/**/source,/src/cloudgoat/scenarios/aws/**/app,/src/cloudgoat/scenarios/aws/**/target_lambda_src" \
+            --exclude-paths "/src/cloudgoat/scenarios/aws/vulnerable_lambda/terraform/lambda_source_code" \
             --type Terraform \
             --report-formats json \
             -o /results/ \
