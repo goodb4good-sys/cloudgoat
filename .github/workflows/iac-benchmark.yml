@@ -35,11 +35,12 @@ jobs:
             --volume $(pwd):/src:ro \
             bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144 \
             -d /src/cloudgoat/scenarios/aws \
-            --skip-path ".*lambda_source_code.*" \
-            --skip-path ".*assets.*" \
-            --skip-path ".*website.*" \
-            --skip-path ".*source.*" \
-            --skip-path ".*app.*" \
+            --skip-path ".*/lambda_source_code/.*" \
+            --skip-path ".*/target_lambda_src/.*" \
+            --skip-path ".*/assets/.*" \
+            --skip-path ".*/website/.*" \
+            --skip-path ".*/source/.*" \
+            --skip-path ".*/app/.*" \
             --framework terraform \
             -o json \
             > benchmark_results/checkov-results.json || true
@@ -70,9 +71,7 @@ jobs:
             --skip-dirs "**/source" \
             --skip-dirs "**/app" \
             --skip-dirs "**/target_lambda_src" \
-            --skip-files "**/Dockerfile*" \
-            --skip-files "**/*.yml" \
-            --skip-files "**/*.yaml" \
+            --misconfig-scanners terraform \
             --format json \
             --output /results/trivy-results.json || true
             
