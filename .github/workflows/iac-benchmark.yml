@@ -84,7 +84,7 @@ jobs:
       - name: Run KICS Scanner
         run: |
           echo "Fetching KICS version..."
-          KICS_VER=$(docker run --rm --entrypoint kics checkmarx/kics@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d '\r\n')
+          KICS_VER=$(docker run --rm --entrypoint kics checkmarx/kics:v2.1.19 version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d '\r\n')
           echo "KICS_VERSION=$KICS_VER" >> $GITHUB_ENV
         
           echo "Starting KICS..."
@@ -93,7 +93,7 @@ jobs:
           docker run --rm \
             --volume $(pwd):/src:ro \
             --volume $(pwd)/benchmark_results:/results \
-            checkmarx/kics@sha256:3e5a268eb8adda2e5a483c9359ddfc4cd520ab856a7076dc0b1d8784a37e2602 \
+            checkmarx/kics:v2.1.19 \
             scan -p /src/cloudgoat/scenarios/aws \
             --exclude-paths "/src/cloudgoat/scenarios/aws/**/assets,/src/cloudgoat/scenarios/aws/**/lambda_source_code,/src/cloudgoat/scenarios/aws/**/website,/src/cloudgoat/scenarios/aws/**/source,/src/cloudgoat/scenarios/aws/**/app,/src/cloudgoat/scenarios/aws/**/target_lambda_src" \
             --type Terraform \
