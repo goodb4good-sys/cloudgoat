@@ -6,7 +6,10 @@ on:
 jobs:
   benchmark-scanners:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        
     steps:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # Pinned to v4
@@ -110,7 +113,7 @@ jobs:
       - name: Upload JSON Benchmark Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # Pinned to v4
         with:
-          name: cloudgoat-results
+          name: cloudgoat-results-${{ matrix.run }}
           path: benchmark_results/
 
       # --- GENERATE SUMMARY ---
