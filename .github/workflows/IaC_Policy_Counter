@@ -1,0 +1,29 @@
+name: IaC Policy Counter
+
+on:
+  workflow_dispatch: # Allows you to trigger the run manually from the GitHub UI
+
+jobs:
+  count-policies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Count Policies
+        run: |
+          echo "Counting AWS IaC policies for official thesis metrics..."
+          echo "--------------------------------------------------------"
+          
+          echo -n "Checkov 3.3.9 (Terraform AWS): "
+          docker run --rm bridgecrew/checkov:3.3.9 --list --framework terraform 2>/dev/null | grep -c -E "CKV_AWS_|CKV2_AWS_"
+          
+          echo -n "KICS 2.1.19 (Terraform AWS): "
+          docker run --rm --entrypoint sh checkmarx/kics:v2.1.19 -c "find /app/bin/assets/queries/terraform/aws -name 'metadata.json' | wc -l"
+          
+          echo -n "Trivy 0.73.0 (Unified AWS): "
+          git clone -q https://github.com/aquasecurity/trivy-checks.git trivy-checks-tmp && \
+          cd trivy-checks-tmp && \
+          git checkout -q 79d27547baf5 && \
+          find checks/cloud/aws -type f \( -name "*.go" -o -name "*.rego" \) ! -name "*_test.go" | wc -l && \
+          cd .. && \
+          rm -rf trivy-checks-tmp
+          
+          echo "--------------------------------------------------------"
