@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - your-new-branch-name
+      - IaC-Policy-Counter
 jobs:
   count-policies:
     runs-on: ubuntu-latest
