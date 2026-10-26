@@ -1,8 +1,10 @@
 name: IaC Policy Counter
 
 on:
-  workflow_dispatch: # Allows you to trigger the run manually from the GitHub UI
-
+  workflow_dispatch:
+  push:
+    branches:
+      - your-new-branch-name
 jobs:
   count-policies:
     runs-on: ubuntu-latest
