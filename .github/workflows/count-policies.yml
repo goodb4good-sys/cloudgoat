@@ -5,27 +5,44 @@ on:
   push:
     branches:
       - IaC-Policy-Counter
+
 jobs:
   count-policies:
     runs-on: ubuntu-latest
     steps:
-      - name: Count Policies
+      - name: Count Policies (Total vs AWS Terraform)
         run: |
-          echo "Counting AWS IaC policies for official thesis metrics..."
-          echo "--------------------------------------------------------"
+          echo "Counting IaC policies for official thesis metrics..."
+          echo "========================================================"
           
-          echo -n "Checkov 3.3.9 (Terraform AWS): "
+          # Pull images quietly first to keep logs clean
+          docker pull -q bridgecrew/checkov:3.3.9 > /dev/null
+          docker pull -q checkmarx/kics:v2.1.19 > /dev/null
+          
+          echo "--- Checkov 3.3.9 ---"
+          echo -n "Total Policies: "
+          docker run --rm bridgecrew/checkov:3.3.9 --list 2>/dev/null | grep -c -E "CKV_|CKV2_|CKV3_"
+          echo -n "AWS Terraform Policies: "
           docker run --rm bridgecrew/checkov:3.3.9 --list --framework terraform 2>/dev/null | grep -c -E "CKV_AWS_|CKV2_AWS_"
           
-          echo -n "KICS 2.1.19 (Terraform AWS): "
+          echo ""
+          echo "--- KICS 2.1.19 ---"
+          echo -n "Total Policies: "
+          docker run --rm --entrypoint sh checkmarx/kics:v2.1.19 -c "find /app/bin/assets/queries -name 'metadata.json' | wc -l"
+          echo -n "AWS Terraform Policies: "
           docker run --rm --entrypoint sh checkmarx/kics:v2.1.19 -c "find /app/bin/assets/queries/terraform/aws -name 'metadata.json' | wc -l"
           
-          echo -n "Trivy 0.73.0 (Unified AWS): "
-          git clone -q https://github.com/aquasecurity/trivy-checks.git trivy-checks-tmp && \
-          cd trivy-checks-tmp && \
-          git checkout -q 79d27547baf5 && \
-          find checks/cloud/aws -type f \( -name "*.go" -o -name "*.rego" \) ! -name "*_test.go" | wc -l && \
-          cd .. && \
+          echo ""
+          echo "--- Trivy 0.73.0 ---"
+          git clone -q https://github.com/aquasecurity/trivy-checks.git trivy-checks-tmp && cd trivy-checks-tmp
+          git checkout -q 79d27547baf5
+          
+          echo -n "Total Policies: "
+          find checks -type f \( -name "*.go" -o -name "*.rego" \) ! -name "*_test.go" | wc -l
+          echo -n "AWS Terraform Policies: "
+          find checks/cloud/aws -type f \( -name "*.go" -o -name "*.rego" \) ! -name "*_test.go" | wc -l
+          
+          cd ..
           rm -rf trivy-checks-tmp
           
-          echo "--------------------------------------------------------"
+          echo "========================================================"
